@@ -1,0 +1,4 @@
+Django==6.0.3
+cloudinary==1.41.0
+huggingface_hub>=0.34,<1
+python-dotenv==1.0.1

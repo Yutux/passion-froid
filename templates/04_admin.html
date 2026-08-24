@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PassionFroid DAM — Administration</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--red:#C8102E;--red-d:#8B0A1E;--gold:#D4A017;--dark:#1A1A2E;--navy:#16213E;--light:#F7F4EF;--white:#fff;--gray:#6B7280;--border:#E5DDD3;--sw:216px;--th:64px;--r:12px;--sh:0 2px 10px rgba(0,0,0,.08);--shm:0 10px 30px rgba(0,0,0,.14)}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:#F2EDE8}
+/* TOP */
+.top{position:fixed;top:0;left:0;right:0;height:var(--th);background:var(--dark);display:flex;align-items:center;padding:0 20px;z-index:200;gap:16px;box-shadow:0 2px 20px rgba(0,0,0,.3)}
+.tlogo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.tlogo-icon{width:36px;height:36px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.tlogo-name{font-family:'Playfair Display',serif;font-size:16px;color:#fff;font-weight:700}
+.tlogo-tag{font-size:10px;background:rgba(255,255,255,.13);color:rgba(255,255,255,.65);padding:2px 8px;border-radius:20px;letter-spacing:.1em;text-transform:uppercase}
+.tnav{display:flex;align-items:center;gap:2px;margin-left:14px}
+.tlink{color:rgba(255,255,255,.55);text-decoration:none;font-size:13px;font-weight:500;padding:6px 12px;border-radius:8px;transition:.2s;display:flex;align-items:center;gap:6px}
+.tlink:hover{background:rgba(255,255,255,.09);color:#fff}.tlink.on{background:rgba(200,16,46,.3);color:#fff}
+.tright{margin-left:auto;display:flex;align-items:center;gap:10px}
+.admin-badge{background:rgba(212,160,23,.25);border:1px solid rgba(212,160,23,.4);color:var(--gold);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px}
+.uchip{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.09);border-radius:50px;padding:4px 12px 4px 4px;cursor:pointer}
+.uav{width:26px;height:26px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--dark)}
+.uname{font-size:12px;color:#fff;font-weight:600}.urole{font-size:10px;color:rgba(255,255,255,.45)}
+
+.layout{display:flex;padding-top:var(--th);min-height:100vh}
+
+/* SIDEBAR */
+.sb{width:var(--sw);position:fixed;top:var(--th);bottom:0;left:0;background:var(--navy);overflow-y:auto;z-index:100;padding:16px 0}
+.sb-sec{padding:6px 14px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:rgba(255,255,255,.28);margin-top:8px}
+.sblink{display:flex;align-items:center;gap:10px;padding:9px 14px;color:rgba(255,255,255,.55);text-decoration:none;font-size:13px;font-weight:500;transition:.2s;cursor:pointer;position:relative;border-left:3px solid transparent}
+.sblink:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+.sblink.on{background:rgba(200,16,46,.2);color:#fff;border-left-color:var(--red)}
+.sb-icon{width:17px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.sb-cnt{margin-left:auto;background:rgba(255,255,255,.14);color:rgba(255,255,255,.65);font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px}
+.sb-cnt.alert{background:var(--red);color:#fff}
+
+/* MAIN */
+.main{margin-left:var(--sw);flex:1;padding:24px 26px 60px}
+
+/* Buttons */
+.btn-red{display:inline-flex;align-items:center;gap:6px;padding:9px 17px;background:var(--red);color:#fff;border:none;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:.2s}
+.btn-red:hover{background:var(--red-d)}
+.btn-out{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;background:var(--white);color:var(--dark);border:2px solid var(--border);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:.2s}
+.btn-out:hover{border-color:var(--dark)}
+
+/* Section header */
+.sec-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+.sec-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--dark);margin-bottom:3px}
+.sec-sub{font-size:13px;color:var(--gray)}
+.sec-acts{display:flex;gap:9px;align-items:center}
+
+/* KPI */
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kcard{background:var(--white);border-radius:var(--r);padding:18px;box-shadow:var(--sh);transition:.22s;cursor:default;position:relative;overflow:hidden}
+.kcard:hover{transform:translateY(-2px);box-shadow:var(--shm)}
+.kcard-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.ki-r{background:rgba(200,16,46,.1);color:var(--red)}.ki-b{background:rgba(15,52,96,.1);color:#0F3460}.ki-g{background:rgba(34,197,94,.1);color:#059669}.ki-go{background:rgba(212,160,23,.12);color:#A07810}
+.kval{font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:var(--dark);line-height:1;margin-bottom:3px}
+.klabel{font-size:11px;color:var(--gray);font-weight:500}
+.kdelta{margin-top:8px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:3px}
+.up{color:#22C55E}.dn{color:var(--red)}
+
+/* Ops */
+.ops{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.op{background:var(--white);border-radius:var(--r);padding:16px;box-shadow:var(--sh);cursor:pointer;transition:.22s;border:1.5px solid transparent;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.op:hover{border-color:var(--red);transform:translateY(-2px)}
+.op-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.oi-r{background:rgba(200,16,46,.1);color:var(--red)}.oi-b{background:rgba(15,52,96,.1);color:#0F3460}.oi-g{background:rgba(34,197,94,.1);color:#059669}.oi-go{background:rgba(212,160,23,.1);color:#A07810}
+.op-name{font-size:12px;font-weight:700;color:var(--dark)}.op-desc{font-size:10px;color:var(--gray);line-height:1.4}
+
+/* Panel */
+.panel{background:var(--white);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden}
+.phd{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.pt{font-size:14px;font-weight:700;color:var(--dark)}.ps2{font-size:11px;color:var(--gray);margin-top:2px}
+.pa{font-size:12px;color:var(--red);font-weight:600;cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:4px}
+
+/* Table */
+table{width:100%;border-collapse:collapse}
+th{padding:9px 13px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray);background:#FAFAF8;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 13px;font-size:12px;color:var(--dark);border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr{transition:.14s;cursor:pointer}tbody tr:last-child td{border-bottom:none}tbody tr:hover{background:#FFF9F5}
+.tc-img{display:flex;align-items:center;gap:8px}
+/* Miniature produit sur fond blanc dans le tableau */
+.thumb-wrap{width:44px;height:38px;background:#fff;border:1px solid #F0EAE2;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:3px}
+.thumb{width:100%;height:100%;object-fit:contain;display:block}
+.fname{font-weight:600;font-size:12px}.fmeta{font-size:10px;color:var(--gray)}
+.sbadge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.s-act{background:#D1FAE5;color:#065F46}.s-pen{background:#FEF3C7;color:#92400E}.s-rev{background:#DBEAFE;color:#1E40AF}.s-arc{background:#F3F4F6;color:var(--gray)}
+.tag-m{display:inline-block;padding:2px 6px;border-radius:8px;font-size:9px;font-weight:700;background:#EFF6FF;color:#1D4ED8;margin-right:3px}
+.dots-btn{background:none;border:none;cursor:pointer;color:var(--gray);padding:4px;border-radius:6px;transition:.14s;display:flex;align-items:center}
+.dots-btn:hover{background:var(--light);color:var(--dark)}
+.tsearch{padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;width:180px;transition:.2s}
+.tsearch:focus{border-color:var(--red)}
+
+/* Two col */
+.two{display:grid;grid-template-columns:1fr 290px;gap:18px;margin-bottom:18px}
+
+/* Right: storage + services + regions */
+.stor{background:var(--white);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh);margin-bottom:14px}
+.stor-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.stor-title{font-size:13px;font-weight:700;color:var(--dark)}.stor-pct{font-size:11px;color:var(--gray)}
+.stor-bar{height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;margin-bottom:8px}
+.stor-fill{height:100%;background:linear-gradient(90deg,var(--dark) 55%,#C84A20 100%);border-radius:4px;width:71%}
+.stor-info{display:flex;gap:12px}
+.sdot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.svc-sect{margin-bottom:14px}.svc-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray);margin-bottom:8px}
+.svc{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid var(--border);border-radius:9px;margin-bottom:7px;background:var(--white);box-shadow:var(--sh)}
+.svc-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.si-r{background:linear-gradient(135deg,var(--dark),#4B5563)}.si-p{background:linear-gradient(135deg,#6366F1,#8B5CF6)}.si-gn{background:linear-gradient(135deg,#059669,#34D399)}.si-or{background:linear-gradient(135deg,#D97706,#FCD34D)}
+.svc-name{font-size:11px;font-weight:600;color:var(--dark)}.svc-sub{font-size:10px;color:var(--gray)}
+.sbg-ok{padding:3px 8px;border-radius:16px;font-size:9px;font-weight:700;background:#D1FAE5;color:#065F46;display:flex;align-items:center;gap:3px}
+.sbg-warn{padding:3px 8px;border-radius:16px;font-size:9px;font-weight:700;background:#FEF3C7;color:#92400E;display:flex;align-items:center;gap:3px}
+.dot-g{background:#22C55E;width:5px;height:5px;border-radius:50%;display:inline-block}
+.dot-o{background:#F59E0B;width:5px;height:5px;border-radius:50%;display:inline-block;animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+.reg-row{display:flex;align-items:center;gap:9px;padding:8px 16px;border-bottom:1px solid var(--border);transition:.14s;cursor:pointer}
+.reg-row:last-child{border-bottom:none}.reg-row:hover{background:#FFF9F5}
+.reg-name{font-size:12px;font-weight:600;color:var(--dark);flex:1}.reg-n{font-size:11px;color:var(--gray);width:30px;text-align:right}
+.reg-bar{flex:0 0 60px;height:5px;background:#E5E7EB;border-radius:3px;overflow:hidden}
+.reg-fill{height:100%;background:var(--red);border-radius:3px}
+
+/* Activity */
+.act-list{padding:0;list-style:none}
+.act-item{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);transition:.14s}
+.act-item:last-child{border-bottom:none}.act-item:hover{background:#FFF9F5}
+.act-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;color:#fff}
+.av-r{background:var(--red)}.av-b{background:#0F3460}.av-g{background:#059669}.av-go{background:var(--gold);color:var(--dark)}
+.act-txt{font-size:12px;color:var(--dark);line-height:1.45}
+.act-txt strong{font-weight:600}.ahl{color:var(--red);font-weight:600}
+.act-time{font-size:10px;color:var(--gray);margin-top:2px}
+
+/* Chart */
+.chart-area{padding:18px}
+.chart-wrap{height:170px}
+.chart-svg{width:100%;height:100%;overflow:visible}
+
+/* Section pages (assets, pending, etc.) */
+.section-page{display:none}
+.section-page.on{display:block}
+
+/* Asset grid pour section "Gérer les assets" */
+.asset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;padding:18px}
+.ag-card{background:var(--white);border-radius:10px;overflow:hidden;border:1.5px solid var(--border);cursor:pointer;transition:.2s}
+.ag-card:hover{border-color:var(--red);transform:translateY(-2px);box-shadow:var(--shm)}
+.ag-img-zone{background:#fff;padding:12px;display:flex;align-items:center;justify-content:center;height:130px;border-bottom:1px solid #F0EAE2;position:relative}
+.ag-img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,.1))}
+.ag-badge{position:absolute;top:6px;left:6px;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:800;color:#fff;text-transform:uppercase}
+.ag-info{padding:8px 10px}
+.ag-brand{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--red)}
+.ag-name{font-size:11px;font-weight:600;color:var(--dark);line-height:1.3;margin:2px 0}
+.ag-ref{font-size:9px;color:#BBB;font-family:monospace}
+
+/* User list */
+.user-list{padding:0}
+.user-row{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border);transition:.14s}
+.user-row:hover{background:#FFF9F5}
+.user-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0}
+.user-name{font-size:13px;font-weight:600;color:var(--dark)}.user-role{font-size:11px;color:var(--gray)}
+.user-region{font-size:11px;color:var(--gray);margin-left:auto}
+.user-status{padding:3px 9px;border-radius:14px;font-size:10px;font-weight:700}
+
+/* Settings */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:18px}
+.setting-card{background:var(--light);border-radius:10px;padding:16px;border:1.5px solid var(--border)}
+.setting-title{font-size:13px;font-weight:700;color:var(--dark);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.setting-sub{font-size:11px;color:var(--gray);margin-bottom:12px}
+.setting-inp{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--dark);outline:none;background:var(--white);margin-bottom:8px;transition:.2s}
+.setting-inp:focus{border-color:var(--red)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.toggle-row:last-child{border-bottom:none}
+.tl-label{font-size:12px;color:var(--dark)}.tl-sub{font-size:10px;color:var(--gray)}
+.tog{position:relative;width:36px;height:20px;cursor:pointer;flex-shrink:0}
+.tog input{opacity:0;position:absolute}.tog-tr{position:absolute;inset:0;background:#D1D5DB;border-radius:10px;transition:.2s}.tog input:checked+.tog-tr{background:var(--red)}
+.tog-th{position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}.tog input:checked~.tog-th{left:18px}
+
+/* Monitoring */
+.monitor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:18px}
+.mon-card{background:var(--light);border-radius:10px;padding:14px;border:1.5px solid var(--border)}
+.mon-title{font-size:12px;font-weight:700;color:var(--dark);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.mon-val{font-family:'Playfair Display',serif;font-size:26px;font-weight:900;color:var(--dark)}
+.mon-sub{font-size:11px;color:var(--gray);margin-top:3px}
+.mon-bar{height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden;margin-top:8px}
+.mon-fill{height:100%;background:var(--red);border-radius:3px}
+
+/* Toast */
+.toast{position:fixed;bottom:28px;right:28px;background:var(--dark);color:#fff;padding:12px 16px;border-radius:10px;font-size:12px;font-weight:500;opacity:0;transform:translateY(12px);transition:.28s;z-index:500;box-shadow:var(--shm)}
+.toast.on{opacity:1;transform:translateY(0)}
+
+/* Confirm modal */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.modal.on{display:flex}
+.mbox{background:#fff;border-radius:14px;padding:32px;max-width:340px;width:90%;text-align:center;animation:popIn .25s ease}
+@keyframes popIn{from{transform:scale(.88);opacity:0}to{transform:scale(1);opacity:1}}
+.mbox-icon{font-size:36px;margin-bottom:12px}
+.mbox-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--dark);margin-bottom:7px}
+.mbox-sub{font-size:12px;color:var(--gray);line-height:1.6;margin-bottom:18px}
+.mbox-actions{display:flex;gap:10px;justify-content:center}
+.mbox-btn{padding:9px 20px;background:var(--red);color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.mbox-btn.sec{background:var(--white);color:var(--dark);border:2px solid var(--border)}
+</style>
+</head>
+<body>
+<header class="top">
+  <a href="{% url 'portal:login' %}" class="tlogo">
+    <div class="tlogo-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93 4.93 19.07"/></svg></div>
+    <span class="tlogo-name">PassionFroid</span><span class="tlogo-tag">DAM</span>
+  </a>
+  <nav class="tnav">
+    <a href="{% url 'portal:search' %}" class="tlink"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Recherche</a>
+    <a href="{% url 'portal:upload' %}" class="tlink"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importer</a>
+    <a href="{% url 'portal:admin_dashboard' %}" class="tlink on"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Admin</a>
+  </nav>
+  <div class="tright">
+    <span class="admin-badge">★ Marketing National</span>
+    <div class="uchip"><div class="uav">AB</div><div><div class="uname">Admin B.</div><div class="urole">National</div></div></div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sb">
+    <div class="sb-sec">Navigation</div>
+    <a class="sblink on" onclick="showSection('dashboard',this)"><span class="sb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>Dashboard</a>
+    <a class="sblink" onclick="showSection('assets',this)"><span class="sb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>Gérer les assets<span class="sb-cnt">5 847</span></a>
+    <a class="sblink" onclick="showSection('pending',this)"><span class="sb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>En attente<span class="sb-cnt alert">12</span></a>
+    <a class="sblink" onclick="showSection('archives',this)"><span class="sb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>Archives<span class="sb-cnt">1 203</span></a>
+    <div class="sb-sec">Services</div>
+    <a class="sblink" onclick="showSection('monitoring',this)"><span class="sb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>Monitoring</a>
+    <a class="sblink" onclick="showSection('monitoring',this)"><span class="sb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></span>Stockage cloud</a>
+    <div class="sb-sec">Administration</div>
+    <a class="sblink" onclick="showSection('users',this)"><span class="sb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Utilisateurs<span class="sb-cnt">87</span></a>
+    <a class="sblink" onclick="showSection('regions',this)"><span class="sb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/></svg></span>Régions<span class="sb-cnt">11</span></a>
+    <a class="sblink" onclick="showSection('settings',this)"><span class="sb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></span>Paramètres</a>
+  </aside>
+
+  <!-- MAIN content area -->
+  <main class="main">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div class="section-page on" id="sec-dashboard">
+      <div class="sec-hd">
+        <div><div class="sec-title">Dashboard</div><div class="sec-sub">Vue d'ensemble — Marketing National</div></div>
+        <div class="sec-acts">
+          <button class="btn-out" onclick="toast('Export en cours…')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exporter</button>
+          <button class="btn-red" onclick="window.location='{% url 'portal:upload' %}'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importer</button>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kcard"><div class="kcard-icon ki-r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="kval">5 847</div><div class="klabel">Photos médiathèque</div><div class="kdelta up"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>+234 ce mois</div></div>
+        <div class="kcard"><div class="kcard-icon ki-b"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><div class="kval">1 204</div><div class="klabel">Téléchargements / mois</div><div class="kdelta up"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>+18% vs N-1</div></div>
+        <div class="kcard"><div class="kcard-icon ki-g"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div class="kval">98.2%</div><div class="klabel">Précision analyse IA</div><div class="kdelta up"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>+0.4pt</div></div>
+        <div class="kcard"><div class="kcard-icon ki-go"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="kval">87</div><div class="klabel">Utilisateurs actifs</div><div class="kdelta up"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>+12 nouveaux</div></div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:10px">Opérations rapides</div>
+      <div class="ops">
+        <div class="op" onclick="toast('Re-tagging IA lancé…')"><div class="op-icon oi-r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div class="op-name">Re-tagger avec l'IA</div><div class="op-desc">Relancer l'analyse sur les photos sans tags</div></div>
+        <div class="op" onclick="toast('Import en masse démarré…')"><div class="op-icon oi-b"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div><div class="op-name">Import en masse</div><div class="op-desc">Intégrer un dossier depuis le cloud</div></div>
+        <div class="op" onclick="showConfirm('Nettoyer les doublons','Détecter et supprimer les photos similaires dans la médiathèque ?')"><div class="op-icon oi-g"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div><div class="op-name">Nettoyer doublons</div><div class="op-desc">Détecter les photos similaires</div></div>
+        <div class="op" onclick="toast('Export vers SharePoint…')"><div class="op-icon oi-go"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div><div class="op-name">Exporter</div><div class="op-desc">Synchroniser avec portail Pomona</div></div>
+      </div>
+      <div class="two">
+        <div>
+          <div class="panel" style="margin-bottom:16px">
+            <div class="phd"><div><div class="pt">Assets récents</div><div class="ps2">Importés ou modifiés récemment</div></div><div style="display:flex;gap:8px;align-items:center"><input type="text" class="tsearch" placeholder="Rechercher…" oninput="filterTable(this.value)"><button class="pa" onclick="showSection('assets',null)">Tout voir <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button></div></div>
+            <table><thead><tr><th><input type="checkbox" onchange="selectAll(this)"></th><th>Produit</th><th>Tags</th><th>Statut</th><th>Région</th><th>Date</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
+          </div>
+          <div class="panel"><div class="phd"><div><div class="pt">Téléchargements 30 jours</div><div class="ps2">Activité par équipe régionale</div></div></div>
+            <div class="chart-area"><div class="chart-wrap"><svg class="chart-svg" viewBox="0 0 600 170" preserveAspectRatio="none">
+              <line x1="0" y1="0" x2="600" y2="0" stroke="#F3F4F6" stroke-width="1"/>
+              <line x1="0" y1="42" x2="600" y2="42" stroke="#F3F4F6" stroke-width="1"/>
+              <line x1="0" y1="85" x2="600" y2="85" stroke="#F3F4F6" stroke-width="1"/>
+              <line x1="0" y1="127" x2="600" y2="127" stroke="#F3F4F6" stroke-width="1"/>
+              <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#C8102E" stop-opacity=".15"/><stop offset="100%" stop-color="#C8102E" stop-opacity="0"/></linearGradient></defs>
+              <path d="M 0 155 L 30 140 L 60 125 L 90 135 L 120 105 L 150 90 L 180 100 L 210 75 L 240 85 L 270 60 L 300 65 L 330 45 L 360 35 L 390 50 L 420 30 L 450 40 L 480 25 L 510 35 L 540 15 L 570 10 L 600 5 L 600 170 L 0 170 Z" fill="url(#ag)"/>
+              <path d="M 0 155 L 30 140 L 60 125 L 90 135 L 120 105 L 150 90 L 180 100 L 210 75 L 240 85 L 270 60 L 300 65 L 330 45 L 360 35 L 390 50 L 420 30 L 450 40 L 480 25 L 510 35 L 540 15 L 570 10 L 600 5" fill="none" stroke="#C8102E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="0" y="167" font-size="10" fill="#9CA3AF">01/03</text><text x="195" y="167" font-size="10" fill="#9CA3AF">15/03</text><text x="565" y="167" font-size="10" fill="#9CA3AF">auj.</text>
+            </svg></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="stor"><div class="stor-hd"><div class="stor-title">Stockage cloud</div><div class="stor-pct">3.55 Go / 5 Go</div></div><div class="stor-bar"><div class="stor-fill"></div></div><div class="stor-info"><div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--gray)"><div class="sdot" style="background:var(--red)"></div>Photos : 3.1 Go</div><div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--gray)"><div class="sdot" style="background:var(--dark)"></div>Vidéos : 450 Mo</div></div></div>
+          <div class="svc-sect">
+            <div class="svc-label">Services</div>
+            <div class="svc"><div class="svc-icon si-r"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div><div class="svc-info" style="flex:1"><div class="svc-name">Stockage cloud</div><div class="svc-sub">West Europe</div></div><div class="sbg-ok"><span class="dot-g"></span>OK</div></div>
+            <div class="svc"><div class="svc-icon si-p"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div class="svc-info" style="flex:1"><div class="svc-name">Analyse IA</div><div class="svc-sub">Vision v4.0</div></div><div class="sbg-ok"><span class="dot-g"></span>OK</div></div>
+            <div class="svc"><div class="svc-icon si-gn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div><div class="svc-info" style="flex:1"><div class="svc-name">Voix / Transcription</div><div class="svc-sub">Speech-to-text</div></div><div class="sbg-warn"><span class="dot-o"></span>Latence</div></div>
+            <div class="svc"><div class="svc-icon si-or"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div><div class="svc-info" style="flex:1"><div class="svc-name">Base de données</div><div class="svc-sub">Index métadonnées</div></div><div class="sbg-ok"><span class="dot-g"></span>OK</div></div>
+          </div>
+          <div class="panel"><div class="phd"><div class="pt">Activité régions</div></div>
+            <div class="reg-row"><span style="font-size:13px">🗼</span><div class="reg-name">Île-de-France</div><div class="reg-n">284</div><div class="reg-bar"><div class="reg-fill" style="width:95%"></div></div></div>
+            <div class="reg-row"><span style="font-size:13px">🌊</span><div class="reg-name">PACA</div><div class="reg-n">201</div><div class="reg-bar"><div class="reg-fill" style="width:71%"></div></div></div>
+            <div class="reg-row"><span style="font-size:13px">🍷</span><div class="reg-name">Nouvelle-Aquitaine</div><div class="reg-n">178</div><div class="reg-bar"><div class="reg-fill" style="width:62%"></div></div></div>
+            <div class="reg-row"><span style="font-size:13px">⛰️</span><div class="reg-name">Auvergne-Rhône-Alpes</div><div class="reg-n">156</div><div class="reg-bar"><div class="reg-fill" style="width:55%"></div></div></div>
+            <div class="reg-row"><span style="font-size:13px">🏛️</span><div class="reg-name">Occitanie</div><div class="reg-n">122</div><div class="reg-bar"><div class="reg-fill" style="width:43%"></div></div></div>
+          </div>
+        </div>
+      </div>
+      <!-- Activity -->
+      <div class="panel"><div class="phd"><div class="pt">Journal d'activité</div><button class="pa">Voir tout</button></div>
+        <ul class="act-list">
+          <li class="act-item"><div class="act-av av-r">ML</div><div><div class="act-txt"><strong>Marie L.</strong> (IDF) a téléchargé <span class="ahl">12 photos</span> — "paupiette de veau"</div><div class="act-time">Il y a 5 min</div></div></li>
+          <li class="act-item"><div class="act-av av-b">IA</div><div><div class="act-txt"><strong>Analyse IA</strong> — <span class="ahl">47 nouvelles photos</span> taguées automatiquement</div><div class="act-time">Il y a 18 min</div></div></li>
+          <li class="act-item"><div class="act-av av-go">JD</div><div><div class="act-txt"><strong>Jean D.</strong> (Admin) a importé <span class="ahl">12 photos</span> depuis le stockage cloud</div><div class="act-time">Il y a 1h</div></div></li>
+          <li class="act-item"><div class="act-av av-g">SB</div><div><div class="act-txt"><strong>Sophie B.</strong> (PACA) a ajouté <span class="ahl">5 photos</span> à ses favoris</div><div class="act-time">Il y a 2h</div></div></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═══ ASSETS ═══ -->
+    <div class="section-page" id="sec-assets">
+      <div class="sec-hd">
+        <div><div class="sec-title">Gérer les assets</div><div class="sec-sub">5 847 photos indexées dans la médiathèque</div></div>
+      <div class="sec-acts"><button class="btn-out" onclick="toast('Export CSV…')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exporter CSV</button><button class="btn-red" onclick="window.location='{% url 'portal:upload' %}'">+ Importer</button></div>
+      </div>
+      <div class="panel" style="margin-bottom:16px">
+        <div class="phd"><div><div class="pt">Tous les assets</div></div><div style="display:flex;gap:8px"><input type="text" class="tsearch" placeholder="Rechercher par nom, réf, tag…"><select class="tsearch" style="width:130px"><option>Tous statuts</option><option>Publié</option><option>En attente</option><option>Archivé</option></select></div></div>
+        <div class="asset-grid" id="asset-grid"></div>
+      </div>
+    </div>
+
+    <!-- ═══ EN ATTENTE ═══ -->
+    <div class="section-page" id="sec-pending">
+      <div class="sec-hd"><div><div class="sec-title">En attente de validation</div><div class="sec-sub">12 assets nécessitent une action</div></div><div class="sec-acts"><button class="btn-red" onclick="toast('Tout approuver')">✓ Tout approuver</button></div></div>
+      <div class="panel"><div class="phd"><div class="pt">Assets en attente</div></div>
+        <table><thead><tr><th><input type="checkbox"></th><th>Produit</th><th>Tags IA</th><th>Importé par</th><th>Date</th><th>Actions</th></tr></thead>
+        <tbody id="pending-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ═══ ARCHIVES ═══ -->
+    <div class="section-page" id="sec-archives">
+      <div class="sec-hd"><div><div class="sec-title">Archives</div><div class="sec-sub">1 203 assets archivés — accessibles en lecture seule</div></div><div class="sec-acts"><button class="btn-out" onclick="toast('Restauration…')">Restaurer sélection</button></div></div>
+      <div class="panel">
+        <div class="phd"><div class="pt">Assets archivés</div><div style="display:flex;gap:8px"><input type="text" class="tsearch" placeholder="Rechercher dans les archives…"></div></div>
+        <div class="asset-grid" id="archive-grid"></div>
+      </div>
+    </div>
+
+    <!-- ═══ MONITORING ═══ -->
+    <div class="section-page" id="sec-monitoring">
+      <div class="sec-hd"><div><div class="sec-title">Monitoring</div><div class="sec-sub">Performance des services et stockage cloud</div></div></div>
+      <div class="panel" style="margin-bottom:16px">
+        <div class="phd"><div class="pt">Services & Infrastructure</div></div>
+        <div class="monitor-grid">
+          <div class="mon-card"><div class="mon-title"><span class="dot-g" style="width:8px;height:8px;border-radius:50%;background:#22C55E;display:inline-block"></span>Stockage cloud</div><div class="mon-val">3.55 Go</div><div class="mon-sub">71% utilisé sur 5 Go</div><div class="mon-bar"><div class="mon-fill" style="width:71%"></div></div></div>
+          <div class="mon-card"><div class="mon-title"><span class="dot-g" style="width:8px;height:8px;border-radius:50%;background:#22C55E;display:inline-block"></span>Analyse IA</div><div class="mon-val">98.2%</div><div class="mon-sub">Précision de détection</div><div class="mon-bar"><div class="mon-fill" style="width:98%"></div></div></div>
+          <div class="mon-card"><div class="mon-title"><span class="dot-o" style="width:8px;height:8px;border-radius:50%;background:#F59E0B;display:inline-block;animation:blink 1.5s infinite"></span>Transcription vocale</div><div class="mon-val">340 ms</div><div class="mon-sub">Latence moyenne (seuil : 200ms)</div><div class="mon-bar"><div class="mon-fill" style="width:67%;background:#F59E0B"></div></div></div>
+          <div class="mon-card"><div class="mon-title"><span class="dot-g" style="width:8px;height:8px;border-radius:50%;background:#22C55E;display:inline-block"></span>Base de données</div><div class="mon-val">12 ms</div><div class="mon-sub">Temps de réponse moyen</div><div class="mon-bar"><div class="mon-fill" style="width:12%;background:#22C55E"></div></div></div>
+          <div class="mon-card"><div class="mon-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Téléchargements</div><div class="mon-val">1 204</div><div class="mon-sub">Ce mois — +18% vs N-1</div><div class="mon-bar"><div class="mon-fill" style="width:82%"></div></div></div>
+          <div class="mon-card"><div class="mon-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Utilisateurs actifs</div><div class="mon-val">87</div><div class="mon-sub">Connectés ce mois</div><div class="mon-bar"><div class="mon-fill" style="width:87%;background:#D4A017"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ USERS ═══ -->
+    <div class="section-page" id="sec-users">
+      <div class="sec-hd"><div><div class="sec-title">Utilisateurs</div><div class="sec-sub">87 collaborateurs actifs — 11 régions</div></div><div class="sec-acts"><button class="btn-red" onclick="showConfirm('Inviter un utilisateur','Envoyer un lien d\'invitation par email ?')">+ Inviter</button></div></div>
+      <div class="panel">
+        <div class="phd"><div class="pt">Tous les utilisateurs</div><div style="display:flex;gap:8px"><input type="text" class="tsearch" placeholder="Rechercher…"><select class="tsearch" style="width:130px"><option>Tous les rôles</option><option>Marketing National</option><option>Marketing Régional</option></select></div></div>
+        <div class="user-list" id="user-list"></div>
+      </div>
+    </div>
+
+    <!-- ═══ REGIONS ═══ -->
+    <div class="section-page" id="sec-regions">
+      <div class="sec-hd"><div><div class="sec-title">Régions</div><div class="sec-sub">11 régions PassionFroid — Groupe Pomona</div></div></div>
+      <div class="panel">
+        <div class="phd"><div class="pt">Toutes les régions</div></div>
+        <div id="regions-list"></div>
+      </div>
+    </div>
+
+    <!-- ═══ SETTINGS ═══ -->
+    <div class="section-page" id="sec-settings">
+      <div class="sec-hd"><div><div class="sec-title">Paramètres</div><div class="sec-sub">Configuration de l'application DAM</div></div><div class="sec-acts"><button class="btn-red" onclick="toast('Paramètres sauvegardés ✓')">Sauvegarder</button></div></div>
+      <div class="panel">
+        <div class="phd"><div class="pt">Configuration générale</div></div>
+        <div class="settings-grid">
+          <div class="setting-card">
+            <div class="setting-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>Stockage cloud</div>
+            <div class="setting-sub">Connexion au stockage des fichiers médias</div>
+            <label style="font-size:11px;font-weight:600;color:var(--dark);display:block;margin-bottom:4px">Bucket / Conteneur</label>
+            <input type="text" class="setting-inp" value="passionfroid-media-prod">
+            <label style="font-size:11px;font-weight:600;color:var(--dark);display:block;margin-bottom:4px">Région</label>
+            <input type="text" class="setting-inp" value="West Europe">
+          </div>
+          <div class="setting-card">
+            <div class="setting-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Analyse IA</div>
+            <div class="setting-sub">Paramètres du moteur de tagging automatique</div>
+            <div class="toggle-row"><div><div class="tl-label">Tagging automatique</div><div class="tl-sub">Analyser les images à l'import</div></div><label class="tog"><input type="checkbox" checked><div class="tog-tr"></div><div class="tog-th"></div></label></div>
+            <div class="toggle-row"><div><div class="tl-label">Détection de personnes</div><div class="tl-sub">Identifier les chefs et cuisiniers</div></div><label class="tog"><input type="checkbox" checked><div class="tog-tr"></div><div class="tog-th"></div></label></div>
+            <div class="toggle-row"><div><div class="tl-label">Reconnaissance vocale</div><div class="tl-sub">Recherche par commande vocale</div></div><label class="tog"><input type="checkbox" checked><div class="tog-tr"></div><div class="tog-th"></div></label></div>
+          </div>
+          <div class="setting-card">
+            <div class="setting-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>Notifications</div>
+            <div class="setting-sub">Alertes et notifications équipes</div>
+            <div class="toggle-row"><div><div class="tl-label">Email à l'import</div><div class="tl-sub">Notifier l'équipe nationale</div></div><label class="tog"><input type="checkbox" checked><div class="tog-tr"></div><div class="tog-th"></div></label></div>
+            <div class="toggle-row"><div><div class="tl-label">Rapport hebdomadaire</div><div class="tl-sub">Stats d'utilisation chaque lundi</div></div><label class="tog"><input type="checkbox"><div class="tog-tr"></div><div class="tog-th"></div></label></div>
+          </div>
+          <div class="setting-card">
+            <div class="setting-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Sécurité</div>
+            <div class="setting-sub">Authentification et accès</div>
+            <label style="font-size:11px;font-weight:600;color:var(--dark);display:block;margin-bottom:4px">Domaine autorisé</label>
+            <input type="text" class="setting-inp" value="@pomona.fr">
+            <div class="toggle-row"><div><div class="tl-label">SSO obligatoire</div><div class="tl-sub">Forcer la connexion enterprise</div></div><label class="tog"><input type="checkbox" checked><div class="tog-tr"></div><div class="tog-th"></div></label></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Confirm modal -->
+<div class="modal" id="modal">
+  <div class="mbox">
+    <div class="mbox-icon" id="modal-icon">🗑️</div>
+    <div class="mbox-title" id="modal-title">Confirmer l'action</div>
+    <div class="mbox-sub" id="modal-sub">Cette action est irréversible.</div>
+    <div class="mbox-actions">
+      <button class="mbox-btn sec" onclick="closeModal()">Annuler</button>
+      <button class="mbox-btn" onclick="confirmAction()">Confirmer</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="t"></div>
+
+<script>
+const PF='https://www.passionfroid.fr/sites/passionfroid/files/styles/main_image_full/public/externals/';
+const ASSETS=[
+  {img:PF+'52061367917c72ffaf8a0df0bfdc4953.jpg?itok=z2PTADiS',name:'Paupiette de veau 100 g',ref:'252883',brand:'Le Boucher du Chef',tags:['Viande','Veau'],st:'active',reg:'IDF',date:'12/03/24'},
+  {img:PF+'7bfa1915d6c5f22aa466aff46e951d16.jpg?itok=TmzKw_3K',name:'Maxi flan cuit 1,8 kg',ref:'232050',brand:'Bon&Engagé',tags:['Dessert','Flan'],st:'active',reg:'PACA',date:'11/03/24'},
+  {img:PF+'36e721c900312caca77797cd1554f6e4.jpg?itok=9EHuyfn-',name:'Crème pistache 125 g',ref:'135881',brand:'Mamie Nova',tags:['Dessert','Frais'],st:'reviewing',reg:'ARA',date:'10/03/24'},
+  {img:PF+'919921e64aa593096a32018168615162.jpg?itok=I2F12alU',name:'Purée légumes Bio',ref:'263088',brand:"D'Aucy",tags:['Légumes','Bio'],st:'pending',reg:'NA',date:'09/03/24'},
+  {img:PF+'43d8b1e3c9bf879b70e20cfac03dea7b.jpg?itok=VvPkIXIP',name:'Coque de chou 17 g',ref:'317594',brand:'Bon&Engagé',tags:['Cocktail'],st:'active',reg:'IDF',date:'08/03/24'},
+  {img:PF+'b82b0a0c2a33fce1fc7b474385b13611.jpg?itok=RsW_xOU2',name:'Saucisson ail fumé 1 kg',ref:'2210',brand:'La Grande Charcuterie',tags:['Charcuterie'],st:'archived',reg:'OCC',date:'07/03/24'},
+  {img:PF+'a83a71d2bc1b5ca89e791de19555853f.jpg?itok=v20K2y3t',name:'Omelette BIO Cocotine',ref:'207639',brand:'Cocotine',tags:['Volaille','Bio'],st:'active',reg:'GE',date:'06/03/24'},
+  {img:PF+'87d3d2ca8e96418ffd692d556ba0cc73.jpg?itok=LEBWbEVC',name:'Feuilleté chèvre 110 g',ref:'33550',brand:'Bon&Engagé',tags:['Entrée'],st:'active',reg:'PACA',date:'05/03/24'},
+  {img:PF+'c6eed0607de35a25beea30e775e78ef7.jpg?itok=VTALXp0A',name:'Crêpe emmental 150 g',ref:'304318',brand:'PassionFroid',tags:['Entrée'],st:'pending',reg:'IDF',date:'04/03/24'},
+  {img:PF+'eba091809afedf5c563f757fdb1a9dac.jpg?itok=IV2FeFL3',name:'Crevettes crues 30/40 ASC',ref:'246289',brand:'Bon&Engagé',tags:['Poisson','ASC'],st:'active',reg:'ARA',date:'03/03/24'},
+  {img:PF+'191255fe125b3d01038056b545dce00d.jpg?itok=vdzn5YAN',name:'Colin alaska cheddar 130 g',ref:'314890',brand:'8 Beaufort',tags:['Poisson','MSC'],st:'reviewing',reg:'NA',date:'02/03/24'},
+  {img:PF+'2ebee6d5f95a7cd22f2fb74bcef51683.jpg?itok=nuXK-IA9',name:'Pain sweet potato burger',ref:'326655',brand:'PassionFroid',tags:['Burger'],st:'active',reg:'IDF',date:'01/03/24'},
+];
+const SLB={active:'Publié',pending:'En attente',reviewing:'En révision',archived:'Archivé'};
+const SCL={active:'s-act',pending:'s-pen',reviewing:'s-rev',archived:'s-arc'};
+const TYP_COL={active:'#2E7D32',pending:'#E65100',reviewing:'#1565C0',archived:'#666'};
+
+function renderTable(data){
+  document.getElementById('tbody').innerHTML=data.map(a=>`
+    <tr onclick="toast('Asset : ${a.name}')">
+      <td><input type="checkbox"></td>
+      <td><div class="tc-img"><div class="thumb-wrap"><img class="thumb" src="${a.img}" onerror="this.src='${PF}52061367917c72ffaf8a0df0bfdc4953.jpg?itok=z2PTADiS'"></div><div><div class="fname">${a.name}</div><div class="fmeta">Réf. ${a.ref} · ${a.brand}</div></div></div></td>
+      <td>${a.tags.map(t=>`<span class="tag-m">${t}</span>`).join('')}</td>
+      <td><span class="sbadge ${SCL[a.st]}">${SLB[a.st]}</span></td>
+      <td style="color:var(--gray);font-size:11px">${a.reg}</td>
+      <td style="color:var(--gray);font-size:11px">${a.date}</td>
+      <td><button class="dots-btn" onclick="event.stopPropagation();showContextMenu(event,'${a.name}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button></td>
+    </tr>`).join('');
+}
+function renderPendingTable(){
+  const pending=ASSETS.filter(a=>a.st==='pending'||a.st==='reviewing');
+  document.getElementById('pending-tbody').innerHTML=pending.map(a=>`
+    <tr>
+      <td><input type="checkbox"></td>
+      <td><div class="tc-img"><div class="thumb-wrap"><img class="thumb" src="${a.img}" onerror="this.src='${PF}52061367917c72ffaf8a0df0bfdc4953.jpg?itok=z2PTADiS'"></div><div><div class="fname">${a.name}</div><div class="fmeta">Réf. ${a.ref}</div></div></div></td>
+      <td>${a.tags.map(t=>`<span class="tag-m">${t}</span>`).join('')}</td>
+      <td style="font-size:11px;color:var(--gray)">Jean D.</td>
+      <td style="font-size:11px;color:var(--gray)">${a.date}</td>
+      <td><button class="btn-red" style="padding:4px 12px;font-size:11px" onclick="toast('✓ Asset approuvé')">Approuver</button></td>
+    </tr>`).join('');
+}
+function renderAssetGrid(containerId, data){
+  document.getElementById(containerId).innerHTML=data.map(a=>`
+    <div class="ag-card" onclick="toast('Asset : ${a.name}')">
+      <div class="ag-img-zone">
+        <div class="ag-badge" style="background:${TYP_COL[a.st]}">${SLB[a.st]}</div>
+        <img class="ag-img" src="${a.img}" onerror="this.src='${PF}52061367917c72ffaf8a0df0bfdc4953.jpg?itok=z2PTADiS'" alt="${a.name}">
+      </div>
+      <div class="ag-info">
+        <div class="ag-brand">${a.brand}</div>
+        <div class="ag-name">${a.name}</div>
+        <div class="ag-ref">Réf. ${a.ref}</div>
+      </div>
+    </div>`).join('');
+}
+function renderUsers(){
+  const USERS=[
+    {name:'Marie Leblanc',role:'Mktg Régional',region:'Île-de-France',color:'#C8102E',st:'active'},
+    {name:'Jean Dupont',role:'Mktg National',region:'National',color:'#D4A017',st:'active'},
+    {name:'Sophie Bernard',role:'Mktg Régional',region:'PACA',color:'#059669',st:'active'},
+    {name:'Pierre Martin',role:'Mktg Régional',region:'Auvergne-Rhône-Alpes',color:'#0F3460',st:'active'},
+    {name:'Claire Moreau',role:'Mktg Régional',region:'Nouvelle-Aquitaine',color:'#7C3AED',st:'active'},
+    {name:'Thomas Petit',role:'Admin National',region:'National',color:'#1A1A2E',st:'inactive'},
+  ];
+  document.getElementById('user-list').innerHTML=USERS.map(u=>`
+    <div class="user-row">
+      <div class="user-av" style="background:${u.color}">${u.name.split(' ').map(n=>n[0]).join('')}</div>
+      <div><div class="user-name">${u.name}</div><div class="user-role">${u.role}</div></div>
+      <div class="user-region">${u.region}</div>
+      <span class="user-status" style="background:${u.st==='active'?'#D1FAE5':'#F3F4F6'};color:${u.st==='active'?'#065F46':'#6B7280'}">${u.st==='active'?'Actif':'Inactif'}</span>
+      <button class="btn-out" style="padding:4px 12px;font-size:11px;margin-left:8px" onclick="toast('Options de ${u.name}')">…</button>
+    </div>`).join('');
+}
+function renderRegions(){
+  const REGS=[
+    {name:'Île-de-France',emoji:'🗼',users:18,photos:284,dl:892},
+    {name:'PACA',emoji:'🌊',users:14,photos:201,dl:654},
+    {name:'Nouvelle-Aquitaine',emoji:'🍷',users:12,photos:178,dl:521},
+    {name:'Auvergne-Rhône-Alpes',emoji:'⛰️',users:11,photos:156,dl:487},
+    {name:'Occitanie',emoji:'🏛️',users:9,photos:122,dl:312},
+    {name:'Grand Est',emoji:'🌾',users:8,photos:98,dl:276},
+    {name:'Bretagne',emoji:'🌊',users:7,photos:87,dl:234},
+    {name:'Pays de la Loire',emoji:'🏰',users:6,photos:74,dl:198},
+    {name:'Normandie',emoji:'🥛',users:5,photos:67,dl:187},
+    {name:'Hauts-de-France',emoji:'⚙️',users:4,photos:52,dl:143},
+    {name:'Bourgogne-Franche-Comté',emoji:'🍇',users:3,photos:41,dl:108},
+  ];
+  document.getElementById('regions-list').innerHTML=`
+    <table style="width:100%">
+      <thead><tr><th>Région</th><th>Utilisateurs</th><th>Photos</th><th>Téléchargements</th><th>Activité</th></tr></thead>
+      <tbody>${REGS.map(r=>`
+        <tr onclick="toast('Région : ${r.name}')" style="cursor:pointer">
+          <td><div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">${r.emoji}</span><span style="font-weight:600;font-size:13px">${r.name}</span></div></td>
+          <td style="font-size:12px;color:var(--gray)">${r.users} collabs</td>
+          <td style="font-weight:600;font-size:13px">${r.photos}</td>
+          <td style="font-size:12px;color:var(--gray)">${r.dl}</td>
+          <td><div style="width:100px;height:5px;background:#E5E7EB;border-radius:3px;overflow:hidden"><div style="height:100%;background:var(--red);border-radius:3px;width:${Math.round(r.dl/892*100)}%"></div></div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function filterTable(q){renderTable(ASSETS.filter(a=>a.name.toLowerCase().includes(q.toLowerCase())||a.tags.some(t=>t.toLowerCase().includes(q.toLowerCase()))));}
+function selectAll(cb){document.querySelectorAll('#tbody input[type=checkbox]').forEach(c=>c.checked=cb.checked);if(cb.checked)toast(ASSETS.length+' assets sélectionnés');}
+function showContextMenu(e,name){toast('Actions pour '+name+' : Modifier · Archiver · Supprimer · Télécharger');}
+
+// Section navigation
+function showSection(name, el){
+  document.querySelectorAll('.section-page').forEach(s=>s.classList.remove('on'));
+  document.getElementById('sec-'+name).classList.add('on');
+  document.querySelectorAll('.sblink').forEach(l=>l.classList.remove('on'));
+  if(el) el.classList.add('on');
+  // Render content
+  if(name==='assets'){renderAssetGrid('asset-grid',ASSETS);}
+  if(name==='pending'){renderPendingTable();}
+  if(name==='archives'){renderAssetGrid('archive-grid',ASSETS.filter(a=>a.st==='archived').concat(ASSETS.slice(0,4)));}
+  if(name==='users'){renderUsers();}
+  if(name==='regions'){renderRegions();}
+}
+function showConfirm(title,sub){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-sub').textContent=sub;
+  document.getElementById('modal').classList.add('on');
+}
+function closeModal(){document.getElementById('modal').classList.remove('on');}
+function confirmAction(){closeModal();toast('✓ Action effectuée');}
+function toast(msg){const t=document.getElementById('t');t.textContent=msg;t.classList.add('on');clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove('on'),3500);}
+
+// Init
+renderTable(ASSETS);
+</script>
+</body>
+</html>
