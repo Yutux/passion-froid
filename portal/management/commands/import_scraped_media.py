@@ -1,8 +1,9 @@
-import csv
+﻿import csv
 import hashlib
 import json
 import os
 import re
+import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -10,22 +11,24 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from portal.ai_tags import TaggingError, generate_ai_metadata_for_asset
+from portal.ai_tags import TaggingError
+from portal.views import _store_ai_tags
 from portal.cloudinary_medallion import configure_cloudinary, run_medallion_pipeline
+from portal.firebase_sync import FirebaseSyncSkipped, sync_asset_to_firestore
 from portal.models import MediaAsset
 
-# Mêmes dossiers que ceux utilisés par le scraper (scrape_passionfroid.py)
+# MÃªmes dossiers que ceux utilisÃ©s par le scraper (scrape_passionfroid.py)
 DOSSIERS = [
     (Path("medias_passionfroid/images"), "image"),
     (Path("medias_passionfroid/videos/site"), "video"),
     (Path("medias_passionfroid/videos/youtube"), "video"),
 ]
 
-# CSV produits généré par scrape_passionfroid.py (export_csv)
+# CSV produits gÃ©nÃ©rÃ© par scrape_passionfroid.py (export_csv)
 CSV_PRODUITS = Path("passionfroid_complet.csv")
 
-# Log des échecs — permet de savoir après coup quels fichiers ont échoué et pourquoi,
-# même si le terminal a été fermé entre-temps.
+# Log des Ã©checs â€” permet de savoir aprÃ¨s coup quels fichiers ont Ã©chouÃ© et pourquoi,
+# mÃªme si le terminal a Ã©tÃ© fermÃ© entre-temps.
 LOG_ERREURS = Path("import_scraped_media_erreurs.json")
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
@@ -61,8 +64,8 @@ def _md5_de_chemin(chemin: Path) -> str:
 
 def _charger_index_produits() -> dict:
     """
-    Charge passionfroid_complet.csv et indexe chaque ligne par référence produit,
-    pour retrouver marque/labels/conservation/etc. à partir du nom de fichier local.
+    Charge passionfroid_complet.csv et indexe chaque ligne par rÃ©fÃ©rence produit,
+    pour retrouver marque/labels/conservation/etc. Ã  partir du nom de fichier local.
     """
     index = {}
     if not CSV_PRODUITS.exists():
@@ -76,7 +79,7 @@ def _charger_index_produits() -> dict:
 
 
 def _produit_depuis_fichier(nom_fichier: str, index: dict) -> dict:
-    """Retrouve la fiche produit CSV via la référence en tête du nom de fichier local (ex: '123456.jpg')."""
+    """Retrouve la fiche produit CSV via la rÃ©fÃ©rence en tÃªte du nom de fichier local (ex: '123456.jpg')."""
     m = re.match(r"(\d{4,7})", nom_fichier)
     if not m:
         return {}
@@ -85,40 +88,49 @@ def _produit_depuis_fichier(nom_fichier: str, index: dict) -> dict:
 
 class Command(BaseCommand):
     help = (
-        "Ingère automatiquement les images/vidéos déjà téléchargées par le scraper : "
-        "pipeline Medallion complet (bronze→silver→gold) + tagging IA, "
+        "IngÃ¨re automatiquement les images/vidÃ©os dÃ©jÃ  tÃ©lÃ©chargÃ©es par le scraper : "
+        "pipeline Medallion complet (bronzeâ†’silverâ†’gold) + tagging IA, "
         "exactement comme le fait l'upload manuel d'un seul fichier. "
-        "Dédoublonne par MD5 : ne retraite jamais un fichier déjà importé."
+        "DÃ©doublonne par MD5 : ne retraite jamais un fichier dÃ©jÃ  importÃ©."
     )
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--skip-ai",
             action="store_true",
-            help="Ne pas lancer le tagging IA après le pipeline (utile pour aller vite).",
+            help="Ne pas lancer le tagging IA aprÃ¨s le pipeline (utile pour aller vite).",
+        )
+        parser.add_argument(
+            "--skip-firebase",
+            action="store_true",
+            help="Ne pas synchroniser les assets dans Firestore apres l'upload Cloudinary.",
         )
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Simulation : liste ce qui serait traité, sans toucher Cloudinary ni la base.",
+            help="Simulation : liste ce qui serait traitÃ©, sans toucher Cloudinary ni la base.",
         )
 
     def handle(self, *args, **options):
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
         dry_run = options["dry_run"]
         configure_cloudinary()
 
         index_produits = _charger_index_produits()
         if index_produits:
-            self.stdout.write(f"📋 {len(index_produits)} produit(s) chargé(s) depuis {CSV_PRODUITS}")
+            self.stdout.write(f"ðŸ“‹ {len(index_produits)} produit(s) chargÃ©(s) depuis {CSV_PRODUITS}")
         else:
-            self.stdout.write(f"⚠️  {CSV_PRODUITS} introuvable — les assets seront créés sans métadonnées produit.")
+            self.stdout.write(f"âš ï¸  {CSV_PRODUITS} introuvable â€” les assets seront crÃ©Ã©s sans mÃ©tadonnÃ©es produit.")
 
         log_erreurs = _charger_log_erreurs()
         if log_erreurs:
-            self.stdout.write(f"📋 {len(log_erreurs)} échec(s) enregistré(s) lors d'un run précédent")
+            self.stdout.write(f"ðŸ“‹ {len(log_erreurs)} Ã©chec(s) enregistrÃ©(s) lors d'un run prÃ©cÃ©dent")
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("🔍 DRY-RUN — aucun upload, aucune écriture en base\n"))
+            self.stdout.write(self.style.WARNING("ðŸ” DRY-RUN â€” aucun upload, aucune Ã©criture en base\n"))
 
         traites = 0
         ignores = 0
@@ -126,13 +138,13 @@ class Command(BaseCommand):
 
         for dossier, type_defaut in DOSSIERS:
             if not dossier.exists():
-                self.stdout.write(f"⚠️  Dossier introuvable, ignoré : {dossier}")
+                self.stdout.write(f"âš ï¸  Dossier introuvable, ignorÃ© : {dossier}")
                 continue
 
             exts = IMAGE_EXTS if type_defaut == "image" else VIDEO_EXTS
             fichiers = sorted(f for f in dossier.rglob("*") if f.suffix.lower() in exts)
 
-            self.stdout.write(f"\n📂 {dossier} — {len(fichiers)} fichier(s)")
+            self.stdout.write(f"\nðŸ“‚ {dossier} â€” {len(fichiers)} fichier(s)")
 
             for chemin in fichiers:
                 md5 = _md5_de_chemin(chemin)
@@ -187,38 +199,35 @@ class Command(BaseCommand):
                         taille_bronze=bronze_info.get("bytes"),
                         taille_gold=gold_info.get("bytes"),
                         type_fichier=type_f,
-                        statut="en_cours",
-                        couche_actuelle="gold",
-                        pipeline_complet=True,
+                        statut="termine",
+                        couche_actuelle="silver",
+                        pipeline_complet=False,
                     )
 
-                    # ── Tagging IA automatique, comme upload_view ──
+                    # â”€â”€ Tagging IA automatique, comme upload_view â”€â”€
                     if type_f == "image" and not options["skip_ai"]:
+                        from portal.ai_worker import enqueue_asset
+                        enqueue_asset(asset)
+
+                    if not options["skip_firebase"]:
                         try:
-                            tagging = generate_ai_metadata_for_asset(asset, allow_fallback=True)
-                            asset.ai_caption = tagging.caption
-                            asset.ai_tags = tagging.tags
-                            asset.ai_tag_source = tagging.source
-                            from django.utils import timezone
-                            asset.ai_analyzed_at = timezone.now()
-                            asset.save(update_fields=[
-                                "ai_caption", "ai_tags", "ai_tag_source",
-                                "ai_analyzed_at", "modifie_le",
-                            ])
-                        except TaggingError as exc:
-                            self.stderr.write(f"  ⚠️  IA échouée pour {chemin.name} : {exc}")
+                            sync_asset_to_firestore(asset)
+                        except FirebaseSyncSkipped:
+                            pass
+                        except Exception as exc:
+                            self.stderr.write(f"  âš ï¸  Sync Firebase Ã©chouÃ©e pour {chemin.name} : {exc}")
 
                     traites += 1
-                    self.stdout.write(f"  ✅  {chemin.name}")
+                    self.stdout.write(f"  âœ…  {chemin.name}")
 
-                    # Si ce fichier avait échoué avant et réussit maintenant, on nettoie le log
+                    # Si ce fichier avait Ã©chouÃ© avant et rÃ©ussit maintenant, on nettoie le log
                     if md5 in log_erreurs:
                         del log_erreurs[md5]
                         _sauvegarder_log_erreurs(log_erreurs)
 
                 except Exception as exc:
                     erreurs += 1
-                    self.stderr.write(f"  ❌  {chemin.name} : {exc}")
+                    self.stderr.write(f"  âŒ  {chemin.name} : {exc}")
 
                     log_erreurs[md5] = {
                         "fichier": chemin.name,
@@ -229,7 +238,7 @@ class Command(BaseCommand):
                     _sauvegarder_log_erreurs(log_erreurs)
 
         self.stdout.write("")
-        self.stdout.write(self.style.SUCCESS(f"Traités : {traites}"))
-        self.stdout.write(f"Déjà importés (ignorés) : {ignores}")
+        self.stdout.write(self.style.SUCCESS(f"TraitÃ©s : {traites}"))
+        self.stdout.write(f"DÃ©jÃ  importÃ©s (ignorÃ©s) : {ignores}")
         if erreurs:
-            self.stderr.write(self.style.ERROR(f"Erreurs : {erreurs} — détails dans {LOG_ERREURS}"))
+            self.stderr.write(self.style.ERROR(f"Erreurs : {erreurs} â€” dÃ©tails dans {LOG_ERREURS}"))

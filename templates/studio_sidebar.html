@@ -1,0 +1,12 @@
+<aside class="sidebar">
+<a class="brand" href="{% url 'portal:search' %}"><span class="brand-mark">pf<span>•</span></span><span>PassionFroid<small>STUDIO MÉDIAS</small></span></a>
+<div class="workspace"><span class="workspace-icon">P</span><div>Espace PassionFroid<small>Votre espace médias</small></div></div>
+{% if studio_admin %}<p class="nav-label">ESPACE DE TRAVAIL</p><nav aria-label="Navigation principale">
+<a href="{% url 'portal:admin_dashboard' %}" {% if section == 'dashboard' %}aria-current="page"{% endif %}><span>▦</span>Vue d’ensemble</a>
+<a href="{% url 'portal:admin_assets' %}" {% if section == 'assets' %}aria-current="page"{% endif %}><span>▧</span>Mes médias <b>{{ nav_total }}</b></a>
+<a href="{% url 'portal:ai_learning' %}" {% if section == 'learning' %}aria-current="page"{% endif %}><span>✧</span>Apprentissage IA <b>{{ nav_pending }}</b></a>
+<a href="{% url 'portal:tags' %}" {% if section == 'tags' %}aria-current="page"{% endif %}><span>⌗</span>Référentiel de tags</a>
+<a href="{% url 'portal:archives' %}" {% if section == 'archives' %}aria-current="page"{% endif %}><span>▤</span>Archives</a></nav>
+{% endif %}<p class="nav-label">MÉDIATHÈQUE</p><nav><a href="{% url 'portal:search' %}" {% if section == 'search' %}aria-current="page"{% endif %}><span>⌕</span>Explorer le catalogue</a>{% if studio_admin %}<a href="{% url 'portal:upload' %}" {% if section == 'upload' %}aria-current="page"{% endif %}><span>↥</span>Importer des médias</a>{% endif %}</nav>
+{% if studio_admin %}<div class="sidebar-note"><span>✦</span><strong>Votre expertise fait la différence.</strong><p>Chaque correction validée enrichit la mémoire de votre catalogue.</p><a href="{% url 'portal:ai_learning' %}">Ouvrir l’atelier →</a></div>{% endif %}
+<div class="profile"><span class="avatar">{{ request.user.get_username|first|upper }}</span><div>{{ request.user.get_username }}<small>{% if studio_admin %}Administrateur{% else %}Médiathèque{% endif %}</small></div><form method="post" action="{% url 'portal:logout' %}">{% csrf_token %}<button class="logout-button" type="submit" aria-label="Se déconnecter" title="Se déconnecter">↗</button></form></div></aside>

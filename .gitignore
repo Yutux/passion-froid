@@ -4,8 +4,39 @@ __pycache__/
 .venv/
 venv/
 .env
+*-firebase-adminsdk-*.json
+firebase-service-account*.json
 .pytest_cache/
 .coverage
 htmlcov/
 medias_passionfroid/videos/
 medias_passionfroid/images/
+
+# Local pre-reset backups contain private application data.
+backups/
+
+# Secrets and local configuration (only the sanitized example is versioned).
+.env.*
+!.env.example
+*service-account*.json
+*service_account*.json
+*credentials*.json
+*.pem
+*.key
+*.p12
+
+# Generated application data, logs and local verification artifacts.
+artifacts/
+*.log
+*.sqlite3-*
+.passionfroid_sync.lock
+passionfroid_sync_status.json
+passionfroid_cache.json
+passionfroid_complet.csv
+passionfroid_complet.json
+dam_catalogue.csv
+dam_catalogue.json
+import_scraped_media_erreurs.json
+tmp_*
+.idea/
+.vscode/

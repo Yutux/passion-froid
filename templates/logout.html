@@ -1,0 +1,6 @@
+﻿{% load static %}<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Déconnexion · PassionFroid</title><link rel="stylesheet" href="{% static 'portal/studio.css' %}"><link rel="stylesheet" href="{% static 'portal/auth.css' %}"></head><body class="auth-page"><main class="card"><div class="brand"><span class="mark">pf</span>PassionFroid</div><h1>Vous êtes déconnecté.</h1><p class="sub">Votre session a été fermée.</p><a class="button primary" href="{% url 'portal:login' %}">Retour à la connexion →</a></main>{{ firebase_web_config|json_script:'firebase-config' }}<script type="module">
+const config=JSON.parse(document.getElementById('firebase-config').textContent);
+async function clearFirebase(){if(!config.apiKey)return;const {initializeApp}=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');const {getAuth,signOut}=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js');await signOut(getAuth(initializeApp(config)));}
+try{await Promise.race([clearFirebase(),new Promise(resolve=>setTimeout(resolve,4000))]);}catch{}
+window.location.replace("{% url 'portal:login' %}");
+</script></body></html>
