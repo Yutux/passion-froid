@@ -11,6 +11,7 @@ firebase-service-account*.json
 htmlcov/
 medias_passionfroid/videos/
 medias_passionfroid/images/
+create_branches.py
 
 # Local pre-reset backups contain private application data.
 backups/
