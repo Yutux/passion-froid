@@ -97,6 +97,31 @@ def marquer_telecharge(url: str, chemin_local: str, cache: dict, type_media: str
     sauvegarder_cache(cache)
 
 
+def url_image_originale(url: str) -> str:
+    """
+    Les URLs Drupal en /styles/thumbnail... peuvent renvoyer 403 hors navigateur.
+    Cette fonction tente l'URL originale en supprimant le style et le token itok.
+    """
+    if not url:
+        return url
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path
+    marker = "/sites/passionfroid/files/styles/"
+    if marker not in path:
+        return urllib.parse.urlunparse(parsed._replace(query=""))
+
+    after_styles = path.split(marker, 1)[1]
+    parts = after_styles.split("/", 2)
+    if len(parts) < 3:
+        return urllib.parse.urlunparse(parsed._replace(query=""))
+
+    original_file_path = parts[2]
+    if original_file_path.startswith("public/"):
+        original_file_path = original_file_path[len("public/"):]
+    original_path = "/sites/passionfroid/files/" + original_file_path
+    return urllib.parse.urlunparse(parsed._replace(path=original_path, query=""))
+
+
 # Cache global partagé par toutes les fonctions
 CACHE = charger_cache()
 
@@ -597,14 +622,55 @@ def telecharger_images(products: list, dossier: str = DOSSIER_IMAGES,
 
         # ── Téléchargement ────────────────────────────────────
         try:
-            resp = session.get(url, stream=True, timeout=20)
-            resp.raise_for_status()
+            candidates = [url]
+            original_url = url_image_originale(url)
+            if original_url and original_url not in candidates:
+                candidates.append(original_url)
+
+            resp = None
+            last_error = None
+            used_url = url
+            for candidate_url in candidates:
+                for attempt in range(3):
+                    try:
+                        resp = session.get(
+                            candidate_url,
+                            stream=True,
+                            timeout=20,
+                            headers={
+                                **HEADERS,
+                                "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+                                "Referer": prod.get("url_produit") or BASE_URL + "/",
+                            },
+                        )
+                        if resp.status_code == 403:
+                            last_error = requests.HTTPError(
+                                f"403 Forbidden pour {candidate_url}",
+                                response=resp,
+                            )
+                            resp.close()
+                            time.sleep(8 * (attempt + 1))
+                            continue
+                        resp.raise_for_status()
+                        used_url = candidate_url
+                        break
+                    except Exception as e:
+                        last_error = e
+                        resp = None
+                        time.sleep(2 * (attempt + 1))
+                if resp is not None:
+                    break
+
+            if resp is None:
+                raise last_error
 
             with open(dest, "wb") as f:
                 for chunk in resp.iter_content(8192):
                     f.write(chunk)
 
-            marquer_telecharge(url, dest, CACHE, "image")
+            marquer_telecharge(used_url, dest, CACHE, "image")
+            if used_url != url:
+                marquer_telecharge(url, dest, CACHE, "image")
             telecharge += 1
 
             # Affichage progression toutes les 50 images

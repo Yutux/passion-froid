@@ -1,7 +1,8 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from portal.ai_tags import TaggingError, generate_ai_metadata_for_asset
+from portal.ai_tags import TaggingError
+from portal.views import _store_ai_tags
 from portal.models import MediaAsset
 
 
@@ -32,7 +33,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        queryset = MediaAsset.objects.filter(type_fichier="image").order_by("id")
+        queryset = MediaAsset.objects.filter(type_fichier="image", tags_validated=False).exclude(media_status="ARCHIVED").order_by("id")
 
         if options["public_id"]:
             queryset = queryset.filter(public_id=options["public_id"])
@@ -40,7 +41,7 @@ class Command(BaseCommand):
                 raise CommandError("Aucun asset trouve pour ce public_id.")
 
         if options["only_fallback"]:
-            queryset = queryset.filter(ai_tag_source="metadata-fallback")
+            queryset = queryset.filter(ai_tag_source__startswith="metadata-fallback")
 
         if options["limit"]:
             queryset = queryset[: options["limit"]]
@@ -52,15 +53,10 @@ class Command(BaseCommand):
         for asset in queryset:
             processed += 1
             try:
-                result = generate_ai_metadata_for_asset(
+                result = _store_ai_tags(
                     asset,
                     allow_fallback=options["allow_fallback"],
                 )
-                asset.ai_caption = result.caption
-                asset.ai_tags = result.tags
-                asset.ai_tag_source = result.source
-                asset.ai_analyzed_at = timezone.now()
-                asset.save(update_fields=["ai_caption", "ai_tags", "ai_tag_source", "ai_analyzed_at", "modifie_le"])
                 updated += 1
                 self.stdout.write(
                     self.style.SUCCESS(

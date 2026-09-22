@@ -2,13 +2,16 @@ import json
 import re
 import unicodedata
 from dataclasses import dataclass
+from io import BytesIO
 from urllib.parse import urlparse
 
 from django.conf import settings
 
 
-DEFAULT_MODEL_ID = "Salesforce/blip-image-captioning-base"
+DEFAULT_MODEL_ID = "Salesforce/blip-image-captioning-large"
 DEFAULT_TIMEOUT = 45
+_LOCAL_BLIP_PROCESSOR = None
+_LOCAL_BLIP_MODEL = None
 
 STOPWORDS = {
     "a", "an", "and", "au", "aux", "avec", "background", "black", "close",
@@ -122,6 +125,18 @@ class TaggingResult:
     caption: str
     tags: list[str]
     source: str
+    title: str = ""
+    categories: list[str] | None = None
+    objects: list[str] | None = None
+    people: list[str] | None = None
+    context: list[str] | None = None
+    places: list[str] | None = None
+    colors: list[str] | None = None
+    concepts: list[str] | None = None
+    visual_types: list[str] | None = None
+    logos: list[str] | None = None
+    ocr: list[str] | None = None
+    details: dict | None = None
 
 
 def generate_ai_metadata_for_asset(asset, allow_fallback: bool = True) -> TaggingResult:
@@ -135,9 +150,38 @@ def generate_ai_metadata_for_asset(asset, allow_fallback: bool = True) -> Taggin
 
     try:
         asset = _ensure_vision_ready_asset(asset)
-        image_url = asset.url_gold or asset.url_silver or asset.url_bronze or asset.url_image_source
+        image_url = asset.url_silver or asset.url_bronze or asset.url_image_source or asset.url_gold
         if not image_url:
             raise TaggingError("Aucune URL image exploitable n'est disponible pour cet asset.")
+        from .image_memory import ensure_fingerprint
+        from .tag_learning import feedback_context
+        if asset.pk:
+            ensure_fingerprint(asset)
+        specialists = _remote_image_specialists(image_url)
+        if asset.pk:
+            specialists['human_feedback'] = feedback_context(asset)
+        structured = _generate_french_structured_analysis(image_url, specialists)
+        if structured:
+            structured['specialists'] = specialists
+        if structured:
+            return TaggingResult(
+                caption=structured.get("description", ""),
+                tags=structured.get("tags", []),
+                source=f"huggingface:{structured.get('_model') or _get_vision_instruct_model_id()}",
+                title=structured.get("title", ""),
+                categories=structured.get("categories", []),
+                objects=structured.get("objects", []),
+                people=structured.get("people", []),
+                context=structured.get("context", []),
+                places=structured.get("places", []),
+                colors=structured.get("colors", []),
+                concepts=structured.get("concepts", []),
+                visual_types=structured.get("visual_types", []),
+                logos=structured.get("logos", []),
+                ocr=structured.get("ocr", []),
+                details=structured,
+            )
+
         caption = _generate_caption(image_url)
         tags = build_tags_for_asset(asset, caption)
         return TaggingResult(
@@ -204,6 +248,28 @@ def build_tags_for_asset(asset, caption: str, max_tags: int = 6) -> list[str]:
     return _dedupe_tags(tags, max_tags=max_tags)
 
 
+def _generate_french_structured_analysis(image_url: str, specialists=None) -> dict | None:
+    if not getattr(settings, "HUGGINGFACE_API_TOKEN", ""):
+        return None
+    from .vision_engine import analyze_image
+    return analyze_image(image_url, specialists=specialists)
+
+
+def _parse_json_object(value: str):
+    text = (value or "").strip()
+    text = re.sub(r"^```(?:json)?|```$", "", text, flags=re.IGNORECASE | re.MULTILINE).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{[\s\S]*\}", text)
+        if not match:
+            return None
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            return None
+
+
 def _extract_tags_from_text(text: str) -> list[str]:
     normalized = _normalize_text(text)
     if not normalized:
@@ -247,8 +313,8 @@ def _dedupe_tags(tags: list[str], max_tags: int = 6) -> list[str]:
 
 def _ensure_vision_ready_asset(asset):
     candidate_urls = [
-        getattr(asset, "url_gold", "") or "",
         getattr(asset, "url_silver", "") or "",
+        getattr(asset, "url_gold", "") or "",
         getattr(asset, "url_bronze", "") or "",
         getattr(asset, "url_image_source", "") or "",
     ]
@@ -256,12 +322,35 @@ def _ensure_vision_ready_asset(asset):
     if not current_url:
         return asset
 
-    if _is_cloudinary_url(current_url):
+    import requests
+    from pathlib import Path
+    from django.core.cache import cache
+    usable_url = ''
+    for candidate in candidate_urls:
+        if not candidate:
+            continue
+        cache_key = 'image-accessible:' + candidate
+        if cache.get(cache_key):
+            usable_url = candidate
+            break
+        try:
+            response = requests.head(candidate, timeout=8, allow_redirects=True)
+            if response.ok and response.headers.get('Content-Type','').startswith('image/'):
+                usable_url = candidate
+                cache.set(cache_key, True, 300)
+                break
+        except requests.RequestException:
+            pass
+    if usable_url and _is_cloudinary_url(usable_url) and asset.url_silver and usable_url == asset.url_silver:
         return asset
-
-    source_url = getattr(asset, "url_image_source", "") or current_url
+    # Recover missing Cloudinary resources from the original import, when available.
+    original = Path(getattr(asset, 'fichier_source', '') or '.')
+    if original.is_file():
+        source_url = str(original.resolve())
+    else:
+        source_url = usable_url
     if not source_url:
-        return asset
+        raise TaggingError("Image inaccessible dans Cloudinary et original introuvable. Réimportez ce fichier pour permettre son analyse.")
 
     try:
         from .cloudinary_medallion import configure_cloudinary, run_medallion_pipeline
@@ -284,8 +373,8 @@ def _ensure_vision_ready_asset(asset):
         asset.height = bronze_info.get("height") or asset.height
         asset.taille_bronze = bronze_info.get("bytes") or asset.taille_bronze
         asset.taille_gold = gold_info.get("bytes") or asset.taille_gold
-        asset.couche_actuelle = "gold"
-        asset.pipeline_complet = True
+        asset.couche_actuelle = "gold" if result["urls"]["gold"] else "silver"
+        asset.pipeline_complet = bool(result["urls"]["gold"])
         asset.save(
             update_fields=[
                 "url_bronze",
@@ -308,36 +397,66 @@ def _ensure_vision_ready_asset(asset):
 
 
 def _generate_caption(image_input: str) -> str:
+    """BLIP runs only on Hugging Face, never on the application machine."""
     from huggingface_hub import InferenceClient
-
-    token = getattr(settings, "HUGGINGFACE_API_TOKEN", "")
+    token = getattr(settings, 'HUGGINGFACE_API_TOKEN', '')
     if not token:
-        raise TaggingError("HUGGINGFACE_API_TOKEN manquant pour l'analyse visuelle.")
-
+        raise TaggingError('Token Hugging Face requis pour BLIP distant.')
+    endpoint = getattr(settings, 'HUGGINGFACE_BLIP_ENDPOINT', '')
     try:
-        client = InferenceClient(
-            provider="hf-inference",
-            api_key=token,
-            timeout=_get_timeout(),
-        )
-        output = client.image_to_text(image_input, model=_get_model_id())
+        client = InferenceClient(api_key=token, timeout=15, provider='hf-inference')
+        output = client.image_to_text(image_input, model=endpoint or _get_model_id())
+        caption = output if isinstance(output, str) else getattr(output, 'generated_text', '')
+        if isinstance(output, dict):
+            caption = output.get('generated_text', '')
+        if not caption:
+            raise TaggingError('BLIP distant ne renvoie aucune description.')
+        return caption.strip()
     except Exception as exc:
-        message = _parse_error_message(str(exc)) or str(exc)
-        raise TaggingError(message) from exc
+        raise TaggingError('BLIP distant indisponible. Configurez HUGGINGFACE_BLIP_ENDPOINT pour héberger ce modèle ; le moteur visuel distant prend le relais.') from exc
 
-    if isinstance(output, str):
-        caption = output
-    elif hasattr(output, "generated_text"):
-        caption = output.generated_text
-    elif isinstance(output, dict):
-        caption = output.get("generated_text", "")
-    else:
-        caption = str(output)
 
-    caption = (caption or "").strip()
-    if not caption:
-        raise TaggingError("La reponse Hugging Face ne contient pas de description exploitable.")
-    return caption
+def _remote_image_specialists(image_url):
+    from concurrent.futures import ThreadPoolExecutor
+    from huggingface_hub import InferenceClient
+    from django.core.cache import cache
+    from .vision_engine import clean_list
+    token = getattr(settings, 'HUGGINGFACE_API_TOKEN', '')
+    if not token:
+        return {'blip': {'status':'unavailable'}, 'detector': {'status':'unavailable'}}
+
+    def caption_task():
+        endpoint = getattr(settings, 'HUGGINGFACE_BLIP_ENDPOINT', '')
+        cache_key = 'blip-unavailable:' + endpoint
+        if cache.get(cache_key):
+            return {'status':'unavailable', 'model':_get_model_id(), 'reason':'Endpoint BLIP distant nécessaire.'}
+        try:
+            return {'status':'success', 'model':_get_model_id(), 'caption':_generate_caption(image_url)}
+        except TaggingError:
+            cache.set(cache_key, True, 600)
+            return {'status':'unavailable', 'model':_get_model_id(), 'reason':'Endpoint BLIP distant nécessaire.'}
+
+    def detection_task():
+        model = getattr(settings, 'HUGGINGFACE_OBJECT_ENDPOINT', '') or getattr(settings, 'HUGGINGFACE_OBJECT_DETECTION_MODEL', 'facebook/detr-resnet-50')
+        if cache.get('detector-unavailable:' + model):
+            return {'status':'unavailable', 'model':model}
+        try:
+            client = InferenceClient(provider='hf-inference', api_key=token, timeout=15)
+            output = client.object_detection(image_url, model=model)
+            objects=[]
+            for item in output or []:
+                label = item.get('label','') if isinstance(item,dict) else getattr(item,'label','')
+                score = item.get('score',0) if isinstance(item,dict) else getattr(item,'score',0)
+                if label and float(score) >= .65:
+                    objects.append({'label':label, 'score':round(float(score),3)})
+            return {'status':'success', 'model':model, 'detections':objects[:20], 'labels':clean_list([o['label'] for o in objects])}
+        except Exception:
+            cache.set('detector-unavailable:' + model, True, 300)
+            return {'status':'unavailable', 'model':model}
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        caption, detected = pool.submit(caption_task), pool.submit(detection_task)
+        return {'blip':caption.result(), 'detector':detected.result()}
 
 
 def _parse_error_message(body: str) -> str | None:
@@ -419,6 +538,27 @@ def _get_model_id() -> str:
     return getattr(settings, "HUGGINGFACE_BLIP_MODEL", DEFAULT_MODEL_ID)
 
 
+def _get_vision_instruct_model_id() -> str:
+    return getattr(settings, "HUGGINGFACE_VISION_INSTRUCT_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
+
+
+def _get_vision_instruct_model_ids() -> list[str]:
+    configured = getattr(settings, "HUGGINGFACE_VISION_INSTRUCT_MODELS", "")
+    values = [item.strip() for item in str(configured).split(",") if item.strip()]
+    values.append(_get_vision_instruct_model_id())
+    values.extend([
+        "Qwen/Qwen2.5-VL-7B-Instruct",
+        "Qwen/Qwen2-VL-7B-Instruct",
+    ])
+    deduped = []
+    seen = set()
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            deduped.append(value)
+    return deduped
+
+
 def _get_timeout() -> int:
     return int(getattr(settings, "HUGGINGFACE_API_TIMEOUT", DEFAULT_TIMEOUT))
 
@@ -429,3 +569,11 @@ def _is_cloudinary_url(value: str) -> bool:
     except ValueError:
         return False
     return parsed.netloc.endswith("res.cloudinary.com")
+
+
+def _is_url(value: str) -> bool:
+    try:
+        parsed = urlparse(value or "")
+    except ValueError:
+        return False
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)

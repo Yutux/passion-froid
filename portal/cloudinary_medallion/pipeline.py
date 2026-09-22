@@ -11,6 +11,7 @@ def run_medallion_pipeline(
     silver_max_size: int = 800,
     gold_width: int = 1200,
     gold_quality: int = 85,
+    publish: bool = False,
 ) -> dict:
     """
     Pipeline Medallion complet : Bronze → Silver → Gold.
@@ -35,10 +36,10 @@ def run_medallion_pipeline(
     silver = promote_to_silver(public_id, resource_type=resource_type, max_size=silver_max_size)
 
     # ── Étape 3 : Gold (production finale) ──────────────────
-    gold = promote_to_gold(public_id, resource_type=resource_type, width=gold_width, quality=gold_quality)
+    gold = promote_to_gold(public_id, resource_type=resource_type, width=gold_width, quality=gold_quality) if publish else {"url":"", "bytes":0, "layer":"gold", "status":"awaiting-review"}
 
     duration = round(time.time() - start, 2)
-    savings = round((1 - gold["bytes"] / bronze["bytes"]) * 100, 1) if bronze["bytes"] else 0
+    savings = round((1 - (gold["bytes"] if publish else silver["bytes"]) / bronze["bytes"]) * 100, 1) if bronze["bytes"] else 0
 
     return {
         "public_id": public_id,

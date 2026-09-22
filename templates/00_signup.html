@@ -1,0 +1,109 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inscription - PassionFroid DAM</title>
+<link rel="stylesheet" href="{% static 'portal/studio.css' %}"><link rel="stylesheet" href="{% static 'portal/auth.css' %}">
+</head>
+<body class="auth-page">
+<main class="card">
+  <div class="brand"><div class="mark">*</div>PassionFroid DAM</div>
+  <h1>Créer un compte</h1>
+  <p class="sub">Les nouveaux comptes sont créés avec le rôle utilisateur. Les droits administrateur sont attribués uniquement côté serveur dans Firebase.</p>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="msg {% if message.tags == 'success' %}success{% endif %}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+  <div class="msg" id="formError" style="display:none"></div>
+
+  <form method="post" action="{% url 'portal:signup' %}" id="signupForm">
+    {% csrf_token %}
+    <div class="grid">
+      <div><label for="first_name">Prénom</label><input id="first_name" name="first_name" autocomplete="given-name" required></div>
+      <div><label for="last_name">Nom</label><input id="last_name" name="last_name" autocomplete="family-name" required></div>
+    </div>
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="email" required>
+    <label for="password">Mot de passe</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required>
+    <label for="password_confirm">Confirmation du mot de passe</label>
+    <input id="password_confirm" name="password_confirm" type="password" autocomplete="new-password" required>
+    <button type="submit" id="signupBtn">Créer mon compte</button>
+  </form>
+  <div class="links">Déjà inscrit ? <a href="{% url 'portal:login' %}">Se connecter</a></div>
+</main>
+
+{{ firebase_web_config|json_script:'firebase-config' }}
+<script>
+const FIREBASE_SIGNUP_URL = "{% url 'portal:api_firebase_signup' %}";
+const firebaseConfig = JSON.parse(document.getElementById('firebase-config').textContent);
+const hasFirebaseConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId);
+const form = document.getElementById('signupForm');
+const errorBox = document.getElementById('formError');
+const button = document.getElementById('signupBtn');
+
+function showError(message) {
+  errorBox.textContent = message;
+  errorBox.style.display = 'block';
+}
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return '';
+}
+
+form.addEventListener('submit', async (event) => {
+  if (!hasFirebaseConfig) return;
+  event.preventDefault();
+  errorBox.style.display = 'none';
+  const firstName = document.getElementById('first_name').value.trim();
+  const lastName = document.getElementById('last_name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const passwordConfirm = document.getElementById('password_confirm').value;
+  if (password !== passwordConfirm) {
+    showError('Les mots de passe ne correspondent pas.');
+    return;
+  }
+  button.disabled = true;
+  button.textContent = 'Création...';
+  try {
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');
+    const { getAuth, createUserWithEmailAndPassword, updateProfile, setPersistence, browserSessionPersistence } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js');
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    await setPersistence(auth, browserSessionPersistence);
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(credential.user, { displayName: `${firstName} ${lastName}` });
+    const idToken = await credential.user.getIdToken(true);
+    const response = await fetch(FIREBASE_SIGNUP_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify({ id_token: idToken, first_name: firstName, last_name: lastName }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Inscription impossible');
+    window.location.href = payload.redirect_url || '/recherche/';
+  } catch (error) {
+    const code = String(error.code || '');
+    if (code.includes('email-already-in-use')) showError('Cet email est déjà utilisé.');
+    else if (code.includes('weak-password')) showError('Mot de passe trop faible : utilisez au moins 6 caractères.');
+    else if (code.includes('invalid-email')) showError('Email invalide.');
+    else showError(error.message || 'Inscription impossible.');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Créer mon compte';
+  }
+});
+</script>
+</body>
+</html>
